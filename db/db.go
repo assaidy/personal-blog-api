@@ -15,7 +15,7 @@ var db *sql.DB
 
 // NOTE: this functions runs automatically
 func init() {
-	dbPath := "./data.db"
+	dbPath := "./db/data.db"
 
 	var err error
 	db, err = sql.Open("sqlite3", dbPath)
@@ -56,7 +56,7 @@ func CreatePost(post *types.Post) (int, error) {
 	}
 
 	// insert into tags
-	tagIds := []int64{}
+	tagIds := make([]int64, 0)
 	for _, tag := range post.Tags {
 		res, err = tx.Exec(insertTagsQuery, tag)
 		if err != nil {
@@ -145,7 +145,7 @@ func UpdatePost(post *types.Post) error {
 		return err
 	}
 
-	tagIds := []int64{}
+	tagIds := make([]int64, 0)
 	insertTagsQuery := "INSERT INTO tags (name) VALUES (?)"
 	for _, tag := range post.Tags {
 		result, err := tx.Exec(insertTagsQuery, tag)
@@ -214,7 +214,7 @@ func GetAllPosts() ([]types.Post, error) {
 	}
 	defer rows.Close()
 
-	var posts []types.Post
+	posts := make([]types.Post, 0)
 
 	for rows.Next() {
 		var post types.Post
@@ -246,7 +246,7 @@ func getTagsFromPost(id int) ([]string, error) {
 	}
 	defer rows.Close()
 
-	var tags []string
+	tags := make([]string, 0)
 
 	for rows.Next() {
 		var tag string

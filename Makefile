@@ -1,11 +1,16 @@
 build:
-	@go build -o server main.go
+	@echo "> start building project..."
+	@go build -o ./bin/server cmd/main.go
+	@echo "> build finished successfully"
 
 run: build
-	@./server
+	@echo "> running the project..."
+	@./bin/server
 
 all: build
 
 clean:
-	@rm -rf server
+	@echo "> start cleanup..."
+	@rm -rf bin
+	@echo "> cleanup finished successfully"
 
