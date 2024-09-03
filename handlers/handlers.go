@@ -16,7 +16,7 @@ func HandleCreatePost(w http.ResponseWriter, r *http.Request) error {
 
 	err := json.NewDecoder(r.Body).Decode(&p)
 	if err != nil {
-		return err
+		return types.InvalidJSONError()
 	}
 
 	post := &types.Post{
@@ -65,7 +65,7 @@ func HandleUpdatePostById(w http.ResponseWriter, r *http.Request) error {
 
 	err := json.NewDecoder(r.Body).Decode(&postReq)
 	if err != nil {
-		return err
+		return types.InvalidJSONError()
 	}
 
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
