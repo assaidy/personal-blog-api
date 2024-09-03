@@ -24,7 +24,6 @@ func main() {
 	router.HandleFunc("/posts/{id:[0-9]+}", handlers.Make(handlers.HandleDeletePostById)).
 		Methods("DELETE")
 	// TODO: test the api endpoints
-    // use .env file
 	// TODO: add search by term
 
 	log.Printf("starting server at port %s", Port)
