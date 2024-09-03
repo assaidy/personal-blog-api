@@ -58,17 +58,26 @@ func CreatePost(post *types.Post) (int, error) {
 	// insert into tags
 	tagIds := make([]int64, 0)
 	for _, tag := range post.Tags {
-		res, err = tx.Exec(insertTagsQuery, tag)
-		if err != nil {
+		var existingTagId int64
+		err := tx.QueryRow("SELECT id FROM tags WHERE name = ?", tag).Scan(&existingTagId)
+		if errors.Is(err, sql.ErrNoRows) {
+			result, err := tx.Exec(insertTagsQuery, tag)
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+			tagId, err := result.LastInsertId()
+			if err != nil {
+				tx.Rollback()
+				return 0, err
+			}
+			tagIds = append(tagIds, tagId)
+		} else if err != nil {
 			tx.Rollback()
 			return 0, err
+		} else {
+			tagIds = append(tagIds, existingTagId)
 		}
-		tagId, err := res.LastInsertId()
-		if err != nil {
-			tx.Rollback()
-			return 0, err
-		}
-		tagIds = append(tagIds, tagId)
 	}
 
 	// insert into post_tags
@@ -86,7 +95,6 @@ func CreatePost(post *types.Post) (int, error) {
 	}
 
 	return int(postId), nil
-
 }
 
 func GetPost(id int) (*types.Post, error) {
@@ -131,7 +139,7 @@ func UpdatePost(post *types.Post) error {
         UPDATE posts
         SET title = ?, content = ?, category = ?, updated_at = ?
         WHERE id = ?`
-	_, err = tx.Exec(updatePostQuery, post.Title, post.Content, post.Category, post.UpdatedAt)
+	_, err = tx.Exec(updatePostQuery, post.Title, post.Content, post.Category, post.UpdatedAt, post.Id)
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -148,17 +156,26 @@ func UpdatePost(post *types.Post) error {
 	tagIds := make([]int64, 0)
 	insertTagsQuery := "INSERT INTO tags (name) VALUES (?)"
 	for _, tag := range post.Tags {
-		result, err := tx.Exec(insertTagsQuery, tag)
-		if err != nil {
+		var existingTagId int64
+		err := tx.QueryRow("SELECT id FROM tags WHERE name = ?", tag).Scan(&existingTagId)
+		if errors.Is(err, sql.ErrNoRows) {
+			result, err := tx.Exec(insertTagsQuery, tag)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			tagId, err := result.LastInsertId()
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			tagIds = append(tagIds, tagId)
+		} else if err != nil {
 			tx.Rollback()
 			return err
+		} else {
+			tagIds = append(tagIds, existingTagId)
 		}
-		tagId, err := result.LastInsertId()
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-		tagIds = append(tagIds, tagId)
 	}
 
 	// Insert new post_tags entries
