@@ -11,10 +11,3 @@ type Post struct {
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
-
-type PostCreateOrUpdateRequest struct {
-	Title    string   `json:"title"`
-	Content  string   `json:"content"`
-	Category string   `json:"category"`
-	Tags     []string `json:"tags"`
-}

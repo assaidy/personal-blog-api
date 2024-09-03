@@ -12,21 +12,15 @@ import (
 )
 
 func HandleCreatePost(w http.ResponseWriter, r *http.Request) error {
-	p := &types.PostCreateOrUpdateRequest{}
+	post := &types.Post{}
 
-	err := json.NewDecoder(r.Body).Decode(&p)
+	err := json.NewDecoder(r.Body).Decode(&post)
 	if err != nil {
 		return types.InvalidJSONError()
 	}
 
-	post := &types.Post{
-		Title:     p.Title,
-		Content:   p.Category,
-		Category:  p.Category,
-		Tags:      p.Tags,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-	}
+	post.CreatedAt = time.Now().UTC()
+	post.UpdatedAt = time.Now().UTC()
 
 	postId, err := db.CreatePost(post)
 	if err != nil {
