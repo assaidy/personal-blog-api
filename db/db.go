@@ -162,41 +162,41 @@ func DeletePost(id int) error {
 	return nil
 }
 
-func GetAllPosts() ([]types.Post, error) {
-	query := `
-        SELECT 
-            id,
-            title,
-            content,
-            category,
-            created_at,
-            updated_at
-        FROM posts`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	posts := make([]types.Post, 0)
-
-	for rows.Next() {
-		var post types.Post
-		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-		tags, err := getTagsFromPost(post.Id)
-		if err != nil {
-			return nil, err
-		}
-		post.Tags = tags
-		posts = append(posts, post)
-	}
-
-	return posts, nil
-}
+// func GetAllPosts() ([]types.Post, error) {
+// 	query := `
+//         SELECT 
+//             id,
+//             title,
+//             content,
+//             category,
+//             created_at,
+//             updated_at
+//         FROM posts`
+//
+// 	rows, err := db.Query(query)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
+//
+// 	posts := make([]types.Post, 0)
+//
+// 	for rows.Next() {
+// 		var post types.Post
+// 		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		tags, err := getTagsFromPost(post.Id)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		post.Tags = tags
+// 		posts = append(posts, post)
+// 	}
+//
+// 	return posts, nil
+// }
 
 func getTagsFromPost(id int) ([]string, error) {
 	query := `
@@ -222,4 +222,39 @@ func getTagsFromPost(id int) ([]string, error) {
 	}
 
 	return tags, nil
+}
+
+func GetAllPostsByTerm(term string) ([]types.Post, error) {
+	query := `
+        SELECT DISTINCT posts.id, posts.title, posts.content, posts.category, created_at, updated_at
+        FROM posts
+        LEFT JOIN tags ON posts.id = tags.post_id
+        WHERE posts.title LIKE '%' || ? || '%'
+        OR posts.content LIKE '%' || ? || '%'
+        OR posts.category LIKE '%' || ? || '%'
+        OR (tags.name IS NOT NULL AND tags.name LIKE '%' || ? || '%');`
+
+	rows, err := db.Query(query, term, term, term, term)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	posts := make([]types.Post, 0)
+
+	for rows.Next() {
+		var post types.Post
+		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		tags, err := getTagsFromPost(post.Id)
+		if err != nil {
+			return nil, err
+		}
+		post.Tags = tags
+		posts = append(posts, post)
+	}
+
+	return posts, nil
 }

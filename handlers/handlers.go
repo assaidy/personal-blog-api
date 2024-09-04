@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/assaidy/personal-blog-api/db"
@@ -31,8 +32,19 @@ func HandleCreatePost(w http.ResponseWriter, r *http.Request) error {
 	return WriteJSON(w, http.StatusOK, post)
 }
 
-func HandleGetAllPosts(w http.ResponseWriter, r *http.Request) error {
-	posts, err := db.GetAllPosts()
+// func HandleGetAllPosts(w http.ResponseWriter, r *http.Request) error {
+// 	posts, err := db.GetAllPosts()
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	return WriteJSON(w, http.StatusOK, posts)
+// }
+
+func HandleGetAllPostsByTerm(w http.ResponseWriter, r *http.Request) error {
+	term := strings.TrimSpace(r.URL.Query().Get("term"))
+
+	posts, err := db.GetAllPostsByTerm(term)
 	if err != nil {
 		return err
 	}
@@ -92,6 +104,6 @@ func HandleDeletePostById(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-    w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
