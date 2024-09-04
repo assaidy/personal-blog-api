@@ -11,7 +11,9 @@ all: build
 
 clean:
 	@echo "> start cleanup..."
+	@echo "> removing bin dir..."
 	@rm -rf bin
+	@echo "> removing database..."
 	@rm -rf db/data.db
 	@echo "> cleanup finished successfully"
 

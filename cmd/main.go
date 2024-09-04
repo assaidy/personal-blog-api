@@ -24,7 +24,6 @@ func main() {
 	router.HandleFunc("/posts/{id:[0-9]+}", handlers.Make(handlers.HandleDeletePostById)).
 		Methods("DELETE")
 	// TODO: add search by term
-    // TODO: use only one table for tags (id [primary key], name[not unique], post_id[foreign key])
 
 	log.Printf("starting server at port %s", Port)
 	log.Fatal(http.ListenAndServe(Port, router))

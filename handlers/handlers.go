@@ -92,5 +92,6 @@ func HandleDeletePostById(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return WriteJSON(w, http.StatusNoContent, nil)
+    w.WriteHeader(http.StatusNoContent)
+	return nil
 }

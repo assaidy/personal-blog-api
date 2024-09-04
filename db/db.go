@@ -33,10 +33,6 @@ func init() {
 }
 
 func CreatePost(post *types.Post) (int, error) {
-	insertPostQuery := "INSERT INTO posts (title, content, category, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
-	insertTagsQuery := "INSERT INTO tags (name) VALUES (?)"
-	insertPostTagsQuery := "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)"
-
 	// begin a transaction
 	tx, err := db.Begin()
 	if err != nil {
@@ -44,6 +40,7 @@ func CreatePost(post *types.Post) (int, error) {
 	}
 
 	// insert into posts
+	insertPostQuery := "INSERT INTO posts (title, content, category, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
 	res, err := tx.Exec(insertPostQuery, post.Title, post.Content, post.Category, post.CreatedAt, post.UpdatedAt)
 	if err != nil {
 		tx.Rollback()
@@ -56,33 +53,9 @@ func CreatePost(post *types.Post) (int, error) {
 	}
 
 	// insert into tags
-	tagIds := make([]int64, 0)
+	insertTagsQuery := "INSERT INTO tags (name, post_id) VALUES (?, ?)"
 	for _, tag := range post.Tags {
-		var existingTagId int64
-		err := tx.QueryRow("SELECT id FROM tags WHERE name = ?", tag).Scan(&existingTagId)
-		if errors.Is(err, sql.ErrNoRows) {
-			result, err := tx.Exec(insertTagsQuery, tag)
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-			tagId, err := result.LastInsertId()
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-			tagIds = append(tagIds, tagId)
-		} else if err != nil {
-			tx.Rollback()
-			return 0, err
-		} else {
-			tagIds = append(tagIds, existingTagId)
-		}
-	}
-
-	// insert into post_tags
-	for _, tagId := range tagIds {
-		res, err = tx.Exec(insertPostTagsQuery, postId, tagId)
+		_, err := tx.Exec(insertTagsQuery, tag, postId)
 		if err != nil {
 			tx.Rollback()
 			return 0, err
@@ -146,42 +119,17 @@ func UpdatePost(post *types.Post) error {
 	}
 
 	// Delete existing tags for the post
-	deleteTagsQuery := `DELETE FROM post_tags WHERE post_id = ?`
+	deleteTagsQuery := `DELETE FROM tags WHERE post_id = ?`
 	_, err = tx.Exec(deleteTagsQuery, post.Id)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	tagIds := make([]int64, 0)
-	insertTagsQuery := "INSERT INTO tags (name) VALUES (?)"
+	// insert into tags
+	insertTagsQuery := "INSERT INTO tags (name, post_id) VALUES (?, ?)"
 	for _, tag := range post.Tags {
-		var existingTagId int64
-		err := tx.QueryRow("SELECT id FROM tags WHERE name = ?", tag).Scan(&existingTagId)
-		if errors.Is(err, sql.ErrNoRows) {
-			result, err := tx.Exec(insertTagsQuery, tag)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-			tagId, err := result.LastInsertId()
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-			tagIds = append(tagIds, tagId)
-		} else if err != nil {
-			tx.Rollback()
-			return err
-		} else {
-			tagIds = append(tagIds, existingTagId)
-		}
-	}
-
-	// Insert new post_tags entries
-	insertPostTagsQuery := "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)"
-	for _, tagId := range tagIds {
-		_, err = tx.Exec(insertPostTagsQuery, post.Id, tagId)
+		_, err := tx.Exec(insertTagsQuery, tag, post.Id)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -254,8 +202,7 @@ func getTagsFromPost(id int) ([]string, error) {
 	query := `
         SELECT t.name
         FROM tags t
-        INNER JOIN post_tags pt ON pt.tag_id = t.id
-        WHERE pt.post_id = ?`
+        WHERE t.post_id = ?`
 
 	rows, err := db.Query(query, id)
 	if err != nil {
