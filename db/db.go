@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"database/sql"
 
 	"github.com/assaidy/personal-blog-api/types"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
+	// _ "github.com/mattn/go-sqlite3"
 )
 
 var db *sql.DB
@@ -43,6 +45,11 @@ func CreatePost(post *types.Post) (int, error) {
 	insertPostQuery := "INSERT INTO posts (title, content, category, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
 	res, err := tx.Exec(insertPostQuery, post.Title, post.Content, post.Category, post.CreatedAt, post.UpdatedAt)
 	if err != nil {
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			tx.Rollback()
+			return 0, types.AlreadyExistsError(fmt.Errorf("the title '%s' already exists", post.Title))
+		}
+
 		tx.Rollback()
 		return 0, err
 	}
@@ -73,18 +80,22 @@ func CreatePost(post *types.Post) (int, error) {
 func GetPost(id int) (*types.Post, error) {
 	query := `
         SELECT 
-            title,
-            content,
-            category,
-            created_at,
-            updated_at
-        FROM posts 
-        WHERE id = ?`
+            p.title,
+            p.content,
+            p.category,
+            p.created_at,
+            p.updated_at,
+            IFNULL(GROUP_CONCAT(t.name), '') AS tags
+        FROM posts p
+        LEFT JOIN tags t ON t.post_id = p.id
+        WHERE id = ?
+        GROUP BY p.id`
 
 	post := &types.Post{Id: id}
+	var tagsStr string
 
 	row := db.QueryRow(query, id)
-	err := row.Scan(&post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt)
+	err := row.Scan(&post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt, &tagsStr)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, types.NotFoundError(fmt.Errorf("no post with id %d found", id))
@@ -92,11 +103,11 @@ func GetPost(id int) (*types.Post, error) {
 		return nil, err
 	}
 
-	tags, err := getTagsFromPost(id)
-	if err != nil {
-		return nil, err
+	if tagsStr == "" {
+		post.Tags = []string{}
+	} else {
+		post.Tags = strings.Split(tagsStr, ",")
 	}
-	post.Tags = tags
 
 	return post, nil
 }
@@ -162,42 +173,6 @@ func DeletePost(id int) error {
 	return nil
 }
 
-// func GetAllPosts() ([]types.Post, error) {
-// 	query := `
-//         SELECT 
-//             id,
-//             title,
-//             content,
-//             category,
-//             created_at,
-//             updated_at
-//         FROM posts`
-//
-// 	rows, err := db.Query(query)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-//
-// 	posts := make([]types.Post, 0)
-//
-// 	for rows.Next() {
-// 		var post types.Post
-// 		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		tags, err := getTagsFromPost(post.Id)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		post.Tags = tags
-// 		posts = append(posts, post)
-// 	}
-//
-// 	return posts, nil
-// }
-
 func getTagsFromPost(id int) ([]string, error) {
 	query := `
         SELECT t.name
@@ -226,13 +201,21 @@ func getTagsFromPost(id int) ([]string, error) {
 
 func GetAllPostsByTerm(term string) ([]types.Post, error) {
 	query := `
-        SELECT DISTINCT posts.id, posts.title, posts.content, posts.category, created_at, updated_at
-        FROM posts
-        LEFT JOIN tags ON posts.id = tags.post_id
-        WHERE posts.title LIKE '%' || ? || '%'
-        OR posts.content LIKE '%' || ? || '%'
-        OR posts.category LIKE '%' || ? || '%'
-        OR (tags.name IS NOT NULL AND tags.name LIKE '%' || ? || '%');`
+        SELECT DISTINCT 
+            p.id,
+            p.title,
+            p.content,
+            p.category,
+            p.created_at,
+            p.updated_at,
+            IFNULL(GROUP_CONCAT(t.name), '') AS tags
+        FROM posts p
+        LEFT JOIN tags t ON t.post_id = p.id
+        WHERE p.title LIKE '%' || ? || '%'
+        OR p.content LIKE '%' || ? || '%'
+        OR p.category LIKE '%' || ? || '%'
+        OR (t.name IS NOT NULL AND t.name LIKE '%' || ? || '%')
+        GROUP BY p.id`
 
 	rows, err := db.Query(query, term, term, term, term)
 	if err != nil {
@@ -244,15 +227,18 @@ func GetAllPostsByTerm(term string) ([]types.Post, error) {
 
 	for rows.Next() {
 		var post types.Post
-		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt)
+		var tagsStr string
+		err := rows.Scan(&post.Id, &post.Title, &post.Content, &post.Category, &post.CreatedAt, &post.UpdatedAt, &tagsStr)
 		if err != nil {
 			return nil, err
 		}
-		tags, err := getTagsFromPost(post.Id)
-		if err != nil {
-			return nil, err
+
+		if tagsStr == "" {
+			post.Tags = []string{}
+		} else {
+			post.Tags = strings.Split(tagsStr, ",")
 		}
-		post.Tags = tags
+
 		posts = append(posts, post)
 	}
 

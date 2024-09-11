@@ -28,3 +28,7 @@ func InvalidJSONError() ApiError {
 func NotFoundError(err error) ApiError {
 	return NewApiError(http.StatusNotFound, err)
 }
+
+func AlreadyExistsError(err error) ApiError {
+	return NewApiError(http.StatusBadRequest, err)
+}
